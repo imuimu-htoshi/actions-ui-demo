@@ -4,12 +4,14 @@ import { useState } from "react";
 export default function Home() {
   const [status, setStatus] = useState<"idle"|"running"|"ok"|"ng">("idle");
   const [msg, setMsg] = useState("");
-  const [steps, setSteps] = useState<string[]>([]); // ★追加: サーバから返る処理ステップ
+  const [steps, setSteps] = useState<string[]>([]); // サーバから返る処理ステップ
+  const [debug, setDebug] = useState<any>(null);    // ★追加: debug 情報
 
   const run = async () => {
     setStatus("running");
     setMsg("");
     setSteps([]);
+    setDebug(null);
 
     try {
       const r = await fetch("/api/dispatch", {
@@ -20,10 +22,8 @@ export default function Home() {
 
       const j = await r.json().catch(() => ({}));
 
-      if (j?.steps) {
-        setSteps(j.steps); // ★サーバー側で記録した処理ログを保存
-        console.log("Steps:", j.steps);
-      }
+      if (j?.steps) setSteps(j.steps);
+      if (j?.debug) setDebug(j.debug); // ★debug 情報を保存
 
       if (r.ok && j?.ok) {
         setStatus("ok");
@@ -64,6 +64,13 @@ export default function Home() {
                   <li key={i}>{s}</li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {debug && (
+            <div>
+              <b>Debug info:</b>
+              <pre>{JSON.stringify(debug, null, 2)}</pre>
             </div>
           )}
         </div>
