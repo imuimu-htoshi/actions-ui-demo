@@ -1,19 +1,40 @@
-// app/layout.tsx
-import "./globals.css";
+"use client";
+import { useState } from "react";
 
-export const metadata = {
-  title: "Actions UI Demo",
-  description: "Minimal Next.js UI to trigger GitHub Actions via Vercel",
-};
+export default function Home() {
+  const [status, setStatus] = useState<"idle"|"running"|"ok"|"ng">("idle");
+  const [msg, setMsg] = useState("");
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+  const run = async () => {
+    setStatus("running");
+    setMsg("");
+    const r = await fetch("/api/dispatch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: "main" })
+    });
+    if (r.ok) {
+      setStatus("ok");
+      setMsg("Dispatched to GitHub Actions.");
+    } else {
+      const j = await r.json().catch(()=>({error:"Failed"}));
+      setStatus("ng");
+      setMsg(j?.error || "Failed");
+    }
+  };
+
   return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
+    <main>
+      <h1>Run GitHub Actions</h1>
+      <button onClick={run} disabled={status==="running"}>
+        {status==="running" ? "Running..." : "Run now"}
+      </button>
+      {status !== "idle" && (
+        <p>
+          <b>Status:</b> {status === "ok" ? "Success" : status === "ng" ? "Error" : "Running"}
+          {msg ? ` — ${msg}` : ""}
+        </p>
+      )}
+    </main>
   );
 }
