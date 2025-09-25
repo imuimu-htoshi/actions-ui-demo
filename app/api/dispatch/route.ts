@@ -7,7 +7,7 @@ function env(name: string) {
 }
 
 export async function POST(req: Request) {
-  const steps: string[] = []; // ← ステップログ
+  const steps: string[] = [];
   try {
     steps.push("Parse body");
     const body = await req.json().catch(() => ({}));
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     steps.push("Load env vars");
     const owner = env("GH_OWNER");
     const repo  = env("GH_REPO");
-    const wf    = env("GH_WORKFLOW_ID");
+    const wf    = env("GH_WORKFLOW_ID"); // 数値ID or ファイル名(yml/yaml)
     const token = env("GH_TOKEN");
 
     const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${wf}/dispatches`;
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         Authorization: `Bearer ${token}`,
         Accept: "application/vnd.github+json",
       },
-      body: JSON.stringify({ ref }),
+      body: JSON.stringify({ ref }), // inputsなしの最小
       cache: "no-store",
     });
     const tookMs = Date.now() - startedAt;
@@ -37,33 +37,17 @@ export async function POST(req: Request) {
     steps.push("Got response");
     const text = await r.text();
 
+    const debug = { owner, repo, wf, ref, url, status: r.status, tookMs };
+
     if (!r.ok) {
       steps.push("Response not ok");
-      return NextResponse.json(
-        {
-          ok: false,
-          stage: "dispatch",
-          steps,
-          debug: { owner, repo, wf, ref, url, status: r.status, tookMs },
-          error: text,
-        },
-        { status: r.status }
-      );
+      return NextResponse.json({ ok:false, stage:"dispatch", steps, debug, error:text }, { status:r.status });
     }
 
     steps.push("Dispatch success");
-    return NextResponse.json({
-      ok: true,
-      stage: "done",
-      steps,
-      debug: { owner, repo, wf, ref, url, status: r.status, tookMs },
-      acceptedAt: new Date().toISOString(),
-    });
-  } catch (e: any) {
+    return NextResponse.json({ ok:true, stage:"done", steps, debug, acceptedAt:new Date().toISOString() });
+  } catch (e:any) {
     steps.push("Exception thrown");
-    return NextResponse.json(
-      { ok: false, stage: "exception", steps, error: e?.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok:false, stage:"exception", steps, error:e?.message }, { status:500 });
   }
 }
